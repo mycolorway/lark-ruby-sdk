@@ -7,7 +7,7 @@ module Lark
     def initialize(skip_verify_ssl = true)
       @http = HTTP.timeout(**Lark.http_timeout_options)
       @ssl_context = OpenSSL::SSL::SSLContext.new
-      @ssl_context.ssl_version = :TLSv1
+      #@ssl_context.ssl_version = :TLSv1_2
       @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE if skip_verify_ssl
     end
 
@@ -45,10 +45,12 @@ module Lark
     private
 
     def request(path, header = {}, &_block)
-      url = URI.join(API_BASE_URL, path)
-      Lark.logger.info "request url(#{url}) with headers: #{header}"
+      url = URI.join(Lark.api_base_url, path)
+      request_uuid = SecureRandom.uuid
+      Lark.logger.info "[#{request_uuid}] request url(#{url}) with headers: #{header}"
       as = header.delete(:as)
       header['Accept'] = 'application/json'
+      header['X-Request-ID'] = request_uuid
       response = yield(url, header)
       unless response.status.success?
         Lark.logger.error "request #{url} happen error: #{response.body}"
@@ -79,7 +81,7 @@ module Lark
       Lark.logger.info "response body: #{body}"
       data = JSON.parse body.to_s
       result = Result.new(data)
-      raise ::Lark::AccessTokenExpiredError if [99991663, 99991664].include?(result.code)
+      raise ::Lark::AccessTokenExpiredError if [99_991_663, 99_991_664].include?(result.code)
 
       result
     end
